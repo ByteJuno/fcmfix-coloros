@@ -66,7 +66,6 @@ dependencies {
     compileOnly 'io.github.libxposed:api:101.0.1'
     implementation 'io.github.libxposed:interface:101.0.0'
     implementation 'io.github.libxposed:service:101.0.0'
-    implementation fileTree(dir: "libs", include: ["*.jar"])
     implementation composeBom
     implementation 'androidx.compose.material3:material3'
     implementation 'androidx.activity:activity-compose:1.13.0'
