@@ -43,3 +43,7 @@
 - [工作原理](docs/how-it-works.md)：ColorOS 的限制位置、模块改了什么、与上游的区别
 - [固件核对记录](docs/firmware-notes.md)：各固件上的 Hook 点与实测
 - [开发说明](docs/development.md)：信任边界、构建与发布
+
+## 许可证
+
+本项目自己的代码以 [MIT](LICENSE) 授权。上游 fcmfix 没有发布许可证，来自上游的代码不在授权范围内，详见 [NOTICE](NOTICE)。

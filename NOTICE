@@ -1,0 +1,15 @@
+FCMFix ColorOS
+Copyright (c) 2026 ByteJuno
+
+本项目基于 kooritea/fcmfix 53 版（https://github.com/kooritea/fcmfix）。
+
+LICENSE 中的 MIT 许可只覆盖 ByteJuno 为本项目编写的代码和文档。
+上游 fcmfix 没有发布许可证，来自上游的代码不在此授权范围内，版权归原作者所有。
+每一行的作者可以用 git blame 查看。
+
+第三方组件：
+
+- AndroidX、Jetpack Compose：Apache-2.0
+- libxposed：Apache-2.0
+- Material Symbols 图标：Apache-2.0
+- Gradle Wrapper：Apache-2.0
