@@ -21,7 +21,7 @@
 - 每组 Hook 经 `OplusHooks.runHook` 安装并登记结果，模块界面通过有序广播 `.query.status` 查询（与配置刷新相同的发送方身份校验）。
   一组 Hook 一个都没挂上时必须抛出异常，否则会被记为生效。仅对已核实不存在该限制的固件变体使用
   `NotApplicable`，独立记录为 skipped 并在自查显示“不适用”；未知类、未知签名和安装错误仍为失败。
-  ColorOS 16 的三个兼容调整见 [固件对照记录](coloros16-hook-fixes.md)。
+  判定条件见[固件核对记录](firmware-notes.md#什么时候记为不适用)。
 - Hook 适配层每次注册只执行自己的回调。回调故障记录日志并保留框架原调用/异常；清理在
   finally 中执行。
 - 配置用一次 getAll 读取构造不可变快照，后台串行重载、一次发布；损坏配置保留上一份快照。
@@ -61,8 +61,9 @@ Hook 尽量挂在 Binder 入口、跨 jar 调用的服务方法或体积较大�
 
 ## 发布
 
-- 普通 master push / PR：检查 `docs/releases/<versionName>.md` 是否存在，JUnit、lintDebug、lintRelease、Debug/Release 构建，
+- 普通 master push（只改文档时跳过）/ PR：检查 `docs/releases/<versionName>.md` 是否存在，JUnit、lintDebug、lintRelease、Debug/Release 构建，
   无签名步骤；另有截图和模拟器两个任务（可在 Actions 中手动运行任意分支）。改 versionName 时同一提交里写好发布说明，CI 才会通过。
+- `docs/releases/` 只保留当前版本，改 versionName 时删掉上一版的说明；历史说明都在 GitHub Release 中。
 - 版本号从 13.0 起为 `主版本.修订`，测试版加 `-rcN`，例如 `13.0-rc5`、`13.0`、`13.1`。
   此前的版本号形如 `53-coloros-12.1`，其中 53 是上游 fcmfix 的版本；旧 tag 保持不变。
 - 推送 `v*` tag 触发正式发布：校验 tag 等于 `v` + `versionName`（如 `v13.0-rc5`），测试和 lint 通过后签名、校验签名、

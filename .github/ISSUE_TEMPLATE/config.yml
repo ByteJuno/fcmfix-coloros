@@ -2,4 +2,4 @@ blank_issues_enabled: true
 contact_links:
   - name: 如何提交问题与日志
     url: https://github.com/ByteJuno/fcmfix-coloros/blob/master/docs/report-issue.md
-    about: 提交前请先阅读，并用脚本导出报告
+    about: 提交前请先阅读，并导出报告

@@ -1,112 +1,107 @@
 # 如何提交问题与日志
 
-收不到推送时，请按下面的步骤收集信息，然后[提交 Issue](https://github.com/ByteJuno/fcmfix-coloros/issues/new/choose)。
-FCMFix 的日志写在系统 logcat 中，标签为 `fcmfix`，不在 LSPosed 管理器的“模块日志”页面里，需要用下面的脚本导出。
+先更新到最新版，再按下面三步收集信息，然后[提交 Issue](https://github.com/ByteJuno/fcmfix-coloros/issues/new/choose)。
+FCMFix 的日志在系统 logcat 中（标签 `fcmfix`），不在 LSPosed 管理器的“模块日志”里。
 
-## 1. 先自查
+## 1. 先看“状态”页
 
-13.0 起，FCMFix 会自动检查下面大部分项目，并显示每个放行应用最近一次收到推送的时间（13.2 起在“状态”和“应用”页，
-13.0–13.1 在菜单中的“自查与导出报告”）：
-收到了推送却没有通知，问题通常在应用这一侧（通知被关闭或应用本身）；一直没有收到推送，再按下文排查 GMS 与网络。
+“状态”页逐项检查模块、作用域、Hook、配置同步和 FCM 连接：
 
-- LSPosed 中 FCMFix 同时勾选了 **系统框架** 和 **电池** 两个作用域，改动后已重启；
-- 只启用了一个 FCMFix；
-- 目标应用已在 FCMFix 中放行，应用自身的通知权限已打开；
-- FCMFix 自查中，系统框架和电池的 Hook 都没有显示“未加载”或“失配”（旧版本看界面顶部的 Hook 状态）。“未加载”通常是作用域未勾选或改动后没有重启；
-  “失配”说明某个 Hook 与当前固件不匹配，点击后可以看到具体是哪一项；
-- 打开 FCMFix →“打开 FCM Diagnostics”，查看连接状态。
+- “未加载”：通常是作用域没有勾全，或改动后没有重启；
+- “失配”：某个 Hook 与当前固件不匹配，点开可以看到是哪一项；
+- FCM 连接异常：按下文[判断是网络问题还是系统限制](#fcm-断开网络问题还是系统限制)。
 
-**国内网络说明**：FCMFix 修复的是 GMS 收到消息之后被 ColorOS 拦截的问题，不能让 GMS 连上 FCM 服务器。
-如果 FCM Diagnostics 亮屏时也一直是 disconnected，通常是网络问题：`mtalk.google.com` 的 DNS 被污染，
-或者 5228–5230 端口被封。这种情况需要能返回正确结果的 DNS、hosts 或代理，模块无法解决。
-判断方法见[FCM 断开：网络问题还是系统限制](#fcm-断开网络问题还是系统限制)。
+再到“应用”页确认目标应用已放行，并看它最近一次收到推送的时间。收到了推送却没有通知，问题通常在应用这一侧：
+点开它查看通知状态，或进入系统设置检查。一直没有收到，再排查 GMS 与网络。
+
+## 2. 导出报告（需要 Root）
+
+复现问题后，在“应用”页点开收不到通知的应用，点“导出报告”；或在“状态”页底部点“导出完整报告”，选择应用。授予 Root 后分享或保存。
+
+打不开 FCMFix 时，可以手动运行 [`collect-report.sh`](../scripts/collect-report.sh)：保存到手机的 `Download` 目录，在 Termux 或 `adb shell` 中执行两次。
+
+```sh
+# 重启后 3–5 分钟内执行，开机时的 Hook 结果很快会被 logcat 冲掉
+su -c sh /sdcard/Download/collect-report.sh fcmfix-report-boot.txt
+# 复现问题后执行，把包名换成收不到推送的应用
+su -c sh /sdcard/Download/collect-report.sh fcmfix-report-issue.txt org.telegram.messenger
+```
+
+报告保存在 `Download` 目录。脚本只读取系统状态和日志，不修改任何设置。
+
+## 3. 提交时附上
+
+- 报告，**以附件上传**：把 `.txt` 文件拖进 Issue 输入框。报告通常有几万字，直接粘贴可能被截断；
+- “状态”页底部“复制结果”的内容；
+- FCM Diagnostics 截图和 LSPosed 中的作用域截图；
+- 网络环境（Wi‑Fi 或移动数据，是否使用代理）、测试应用、发送测试消息的大致时间。
+
+报告中包含已安装应用的包名，公开前可以打码，但请保留 `fcmfix`、`GoogleController`、`OplusGoogle` 相关行。
+
+## 常见问题
+
+**放行的应用被“强行停止”后也会被唤醒吗？** 会。放行即允许可信的 FCM 唤醒它，包括被手动强行停止的情况。
+
+**需要把应用加入系统“流量管理”或自启动白名单吗？** 不需要。模块只在每次推送到达后的短时间内放开限制，之后恢复系统原有的省电策略。
+
+**还需要 `coloros_gms_extreme_fix` 这类 GMS Magisk 模块吗？** 不需要，实测只启用本模块时 GMS 长连接和联网策略都正常。OTA 后请重新确认。
+
+**微信没有走 FCM？** 微信等受系统保护的 IM 应用平时走自己的长连接，FCM 日志中没有记录属正常，强行停止后再测试能否被 FCM 唤醒。
+电池设置为“优化”时可能被冻结而漏消息，建议设为“允许完全后台行为”。
 
 ## FCM 断开：网络问题还是系统限制
 
-FCM Diagnostics 中的事件都带时间戳，判断的关键是断开发生的时机和规律。
-
-### 偶发断开还是持续断不开
-
-- 断开后几秒到几十秒内重新 connected：通常正常。运营商或路由器会清理长时间空闲的 TCP 连接（NAT 超时），
-  GMS 会自动重连。
-- 断开后长时间连不上，或反复连上又断开：继续按下文排查。
-- `client entering doze` 本身是正常记录，表示手机进入 Doze 休眠。要看的是它之后连接是否保持。
-
-### 看断开时机
+FCMFix 修复的是 GMS 收到消息之后被 ColorOS 拦截的问题，不能让 GMS 连上 FCM 服务器。
+打开 FCM Diagnostics（“状态”页，或拨号 `*#*#426#*#*`），事件都带时间戳，判断的关键是断开的时机：
 
 | 现象 | 更可能的原因 |
 | --- | --- |
+| 断开后几秒到几十秒内重新连上 | 正常，运营商或路由器清理了空闲连接，GMS 自动重连 |
 | 亮屏使用中也连不上或反复断开 | 网络 |
-| 只在某个网络下出问题，例如移动数据不行、某个 Wi‑Fi 正常 | 网络 |
-| 断开发生在 `client entering doze` 之后，直到亮屏或退出 Doze 才恢复 | 系统限制 |
-| 断开前刚发生 Wi‑Fi / 移动数据切换或网络中断 | 网络切换，属正常 |
-| 开机后一直未连接，`last close code` 为 `ERR_CLOSE_BY_USER_UNLOCKED` | 解锁后被系统断网（见下） |
+| 只在某个网络下出问题 | 网络 |
+| 断开前刚切换 Wi‑Fi / 移动数据 | 网络切换，属正常 |
+| 断开发生在 `client entering doze` 之后，直到亮屏才恢复 | 系统限制 |
+| 开机后一直未连接，`last close code` 为 `ERR_CLOSE_BY_USER_UNLOCKED` | 解锁后被系统断网 |
 
-`ERR_CLOSE_BY_USER_UNLOCKED` 本身是正常记录：开机后、首次解锁前 GMS 已经连上，解锁时 GMS 主动断开并重连。
-如果之后一直显示未连接，说明解锁后的重连失败了。ColorOS 电池服务会在开机完成（首次解锁）后约 5 秒探测 Google 连通性，
-探测失败时会把 GMS、GSF、Play 商店设为禁止联网（策略 4）。此时代理软件通常还没启动，在国内网络下探测基本都会失败。
-请检查模块是否勾选了“系统框架”和“电池”作用域，并用下文“排除系统限制”中的命令查看 GMS 的联网策略；
-53-coloros-12 起，模块也会在系统框架中拦截这条禁网规则。
+`client entering doze` 本身是正常记录，要看它之后连接是否保持。
+
+`ERR_CLOSE_BY_USER_UNLOCKED` 也是正常记录，但之后一直未连接说明解锁后的重连失败了：电池服务在开机完成约 5 秒后探测 Google，
+此时代理通常还没启动，探测失败就会把 GMS 设为禁止联网。请确认两个作用域都已勾选。
 
 ### 测试网络连通性
 
-在 Termux 中执行（先 `pkg install curl dnsutils`）：
+在出问题的网络下，用 Termux 执行（先 `pkg install curl dnsutils`）：
 
 ```sh
 nslookup mtalk.google.com
 curl -v --max-time 5 telnet://mtalk.google.com:5228
 ```
 
-- `nslookup` 返回的不是 Google 地址（常见为 `142.250.x.x`、`74.125.x.x`、`172.217.x.x`、`108.177.x.x` 等）：DNS 被污染；
-- `curl` 输出 `Connected to ...`：该端口可连通；超时或 `Connection refused`：端口被封或 IP 不对。
-  解析结果可疑时，可以换一个已知正确的 IP 再测：`curl -v --max-time 5 telnet://<IP>:5228`。
+- `nslookup` 返回的不是 Google 地址（常见为 `142.250.x.x`、`74.125.x.x`、`172.217.x.x`、`108.177.x.x`）：DNS 被污染，修改 hosts 或换 DNS 通常就能恢复；
+- `curl` 输出 `Connected to ...`：端口可连通；超时或 `Connection refused`：端口被封或 IP 不对，只能走代理。
 
-请在出问题的网络下测试。
+代理能通、直连不行，基本可以确定是网络问题：ColorOS 的限制按 GMS 的 UID 施加，GMS 被禁网时开代理也没有网。
 
-### 代理能通、直连不行
-
-基本可以确定是网络问题。ColorOS 的限制是按 GMS 应用（UID）施加的，与流量走代理还是直连无关：
-GMS 被设为禁止联网时，开代理也没有网；闹钟降级、待机分组也不会因为走代理而消失。
-只有代理能通，说明系统没有拦 GMS，差别在网络路径上。
-
-代理同时改变了 DNS（远端解析）和出口路径，可以进一步细分：
-
-- 直连时 `nslookup` 结果不是 Google 地址：DNS 被污染。修改 hosts 或使用能返回正确结果的 DNS，
-  通常直连即可恢复，不一定需要代理；
-- 解析结果正确，但直连 5228 端口超时：IP 或端口被封，只能通过代理。
-
-两个容易误判的情况：
-
-- 手机上用 VPN 类代理时，代理应用在后台被系统杀掉或冻结，FCM 会随之断开，看起来像 FCM 问题。
-  请给代理应用开启自启动并关闭电池优化；
-- 亮屏时代理能通、熄屏后断开：这与走不走代理无关，按上文“看断开时机”判断是否集中在 Doze 期间。
+代理应用在后台被杀或被冻结时，FCM 会随之断开，看起来像 FCM 的问题。请给它开启自启动并关闭电池优化。
 
 ### 排除系统限制
 
-用下文脚本导出报告，确认：
+在报告中确认：
 
-- “Google 核心包联网策略”中 GMS 为 `policy=0`；
-- GMS 待机分组不是 `40`；
-- 日志中有 `Oplus Battery Google restrict broadcast hooks active` 和 `Oplus Google alarm restriction hook active`，
-  没有 `hook error`。
+- “Google 核心包联网策略”中 GMS 为 `policy=0`，待机分组不是 `40`；
+- 日志中有 `Oplus Battery Google restrict broadcast hooks active` 和 `Oplus Google alarm restriction hook active`，没有 `hook error`。
 
-以上正常、连通性测试不通：网络问题。连通性测试能通、断开却集中在 Doze 期间：可能存在尚未覆盖的系统限制，
-请附上报告和断开时间点提交 Issue。
+这些都正常、连通性测试不通，是网络问题。连通性正常、断开却集中在 Doze 期间，可能是尚未覆盖的系统限制，请附上报告和断开时间提交 Issue。
 
 最直接的验证：连一个确定可用的网络，熄屏放置半小时。在该网络下不断开，而在原网络下断开，就是原网络的问题。
 
 ## 流量管理里没有 Google 入口
 
-ColorOS 17 国行的“流量管理”会**隐藏** Google Play 服务、Google 服务框架和 Play 商店的 WLAN / 移动数据开关，
-也拒绝用户修改它们。这三个包的联网由电池组件（`com.oplus.battery`）自动管理：探测 Google 失败时设为“全部禁止”，
-成功时解除。这是系统设计，不是故障。
+ColorOS 17 国行的“流量管理”会**隐藏** Google Play 服务、Google 服务框架和 Play 商店的联网开关，也拒绝用户修改。
+这三个包由电池组件自动管理：探测 Google 失败时设为“全部禁止”，成功时解除。这是系统设计，不是故障。
+电池作用域会把这次“全部禁止”改为“不限制”，勾选并重启后通常会自动恢复。
 
-FCMFix 的电池作用域会把这次“全部禁止”改为“不限制”。电池组件每次开机都会重新设置一遍，所以勾选电池作用域并重启后，
-通常会自动恢复。
-
-这些策略保存在 ColorOS 自己的联网控制服务（`/data/oplus/common/networkingcontrolpolicy.xml`）中，
-**不在** Android 的 `dumpsys netpolicy` 里。请用 [`collect-report.sh`](../scripts/collect-report.sh) 查看
-“Google 核心包联网策略”一栏，或用 Root 执行：
+这些策略保存在 ColorOS 自己的联网控制服务中，**不在** `dumpsys netpolicy` 里。查看报告的“Google 核心包联网策略”一栏，或用 Root 执行：
 
 ```sh
 su -c 'service call networking_control 2 i32 $(pm list packages -U com.google.android.gms | grep "^package:com.google.android.gms " | grep -o "uid:[0-9]*" | cut -d: -f2)'
@@ -114,30 +109,19 @@ su -c 'service call networking_control 2 i32 $(pm list packages -U com.google.an
 
 输出 `Parcel(00000000 00000000 ...)` 表示不限制，`Parcel(00000000 00000004 ...)` 表示全部禁止。
 
-### 勾选电池作用域并重启后仍是 4
+系统框架作用域丢弃禁网规则后，这里记录的值可能仍是 4，但实际不会断网，以 FCM Diagnostics 是否连接为准。
 
-如果系统记录了“用户手动改过”这些包（例如在旧版系统的流量管理里改过），电池组件会一直跳过它们，旧的禁止状态就会保留下来，
-而 ColorOS 17 的界面又不允许修改。报告中 `oplus_user_change_gms_network_control` 不为 `0` 时就是这种情况。
-
-FCMFix 53-coloros-11 起会自动处理：电池组件自己声明了 `IgnoreGmsUserSet=true`（ColorOS 17 即如此，此时流量管理隐藏这些开关）时，
-电池进程读取该标记一律视为 `0`，电池组件每次开机重新接管这几个包，FCMFix 再把策略改为不限制。
-日志中会出现 `Oplus Battery ignores stale GMS user-change flag`。电池组件没有这一声明的系统不受影响，
-继续尊重用户的设置。
-
-旧版本或自动处理未生效时，可以手动清除该标记并重启：
+如果一直是 4 且连不上：系统记录了“用户手动改过”这些包时（报告中 `oplus_user_change_gms_network_control` 不为 `0`），电池组件会一直跳过它们。
+模块通常会自动处理，日志中有 `Oplus Battery ignores stale GMS user-change flag`。未生效时手动清除后重启：
 
 ```sh
 su -c 'settings put global oplus_user_change_gms_network_control 0'
 ```
 
-重启后再次查看，GMS 应为 `policy=0`。
-
 ### 防火墙链
 
-ColorOS 17 的按应用断网都挂在 `fw_INPUT` / `fw_OUTPUT` 两条链上（17.0.0.102 等较新版本改为挂在它们跳转的
-`oplus_fw_INPUT` / `oplus_fw_OUTPUT` / `fw_OUTPUT_oplus_dns` 子链上，报告会一并列出）：每条 REJECT/DROP 规则匹配一个 BPF 程序，
-被限制的 UID 记录在对应的 BPF 表中，规则本身不出现 UID。报告的“防火墙链”一栏列出这些规则及命中次数（`pkts`），
-程序名对应的功能：
+ColorOS 17 的按应用断网挂在 `fw_INPUT` / `fw_OUTPUT` 及其子链上，被限制的 UID 记录在 BPF 表中，规则本身不出现 UID。
+报告的“防火墙链”一栏列出这些规则及命中次数（`pkts`）。FCM 连不上时，复现前后各导出一次，`pkts` 明显增加的规则就是拦截来源：
 
 | BPF 程序名包含 | 系统功能 |
 | --- | --- |
@@ -145,60 +129,18 @@ ColorOS 17 的按应用断网都挂在 `fw_INPUT` / `fw_OUTPUT` 两条链上（1
 | `netdisable` | 深度睡眠按应用断网 |
 | `hans` | 应用冻结时断网 |
 
-FCM 连不上时，复现前后各导出一次报告，`pkts` 明显增加的规则就是拦截来源。
-“ColorOS Google 拦截规则清理”一类模块会删除这两条链中的全部 REJECT/DROP 规则，使上述限制对所有应用失效；
-排查时请先停用该模块并重启，否则这一栏看不到被删除的规则。
-
-## 2. 导出报告（需要 Root）
-
-13.0 起可以直接在 FCMFix 中导出：13.2 起在“状态”页底部点“导出完整报告”（13.0–13.1 在菜单 →“自查与导出报告”中），
-按提示选择收不到通知的应用并授予 Root，生成后分享或保存即可，内容与下面的脚本相同。也可以在“应用”页点开收不到通知的应用，
-直接导出附带它的日志的报告。“复制结果”不需要 Root，也请一并附上。
-
-旧版本或想手动执行时：
-
-1. 下载 [`collect-report.sh`](../scripts/collect-report.sh)（点击后选“Download raw file”），保存到手机的 `Download` 目录。
-2. **重启手机**，开机后 3–5 分钟内，在 Termux 或 `adb shell` 中执行：
-
-   ```sh
-   su -c sh /sdcard/Download/collect-report.sh fcmfix-report-boot.txt
-   ```
-
-   开机时模块会打印各个 Hook 是否生效，logcat 缓冲区有限，时间长了这些行会被冲掉。
-3. **复现问题后**再执行一次，例如熄屏等待 10 分钟，再发一条测试消息：
-
-   ```sh
-   su -c sh /sdcard/Download/collect-report.sh fcmfix-report-issue.txt 应用包名
-   ```
-
-   把“应用包名”换成收不到推送的应用，例如 `org.telegram.messenger`。报告会多出这个应用的通知设置、
-   进程状态和相关系统日志，用来判断 GMS 发出消息之后，应用有没有被拉起、通知有没有被系统拦下。
-
-两份报告都保存在 `Download` 目录。脚本只读取系统状态和日志，不修改任何设置。
-
-不方便下载脚本时，也可以直接复制 [`collect-report.sh`](../scripts/collect-report.sh) 的内容，保存为同名文件后执行。
-
-## 3. 提交时附上
-
-- 上面两份报告，**以附件上传**：把 `.txt` 文件拖进 Issue 输入框，或点输入框下方的附件按钮选择文件。
-  报告通常有几万字，直接粘贴全文可能被截断，后半部分的日志正是排查最需要的；
-- 自查结果：FCMFix “状态”页底部的“复制结果”（13.0–13.1 在菜单 →“自查与导出报告”中），粘贴到 Issue 中；
-- FCM Diagnostics 截图；
-- LSPosed 中 FCMFix 作用域截图；
-- 网络环境：Wi‑Fi 或移动数据，是否使用代理；
-- 测试应用，以及发送测试消息的大致时间。
-
-报告中包含已安装应用的包名，公开发布前可以自行打码，但请保留 `fcmfix`、`GoogleController`、`OplusGoogle` 相关行。
+“ColorOS Google 拦截规则清理”一类模块会删除这些规则，排查时请先停用并重启。
 
 ## 报告怎么看
 
 | 报告内容 | 含义 |
 | --- | --- |
-| “Google 核心包联网策略”中 GMS 为 `policy=4`（或 1、2） | GMS 被禁止全部（或部分）联网，见下文“流量管理里没有 Google 入口” |
-| 待机分组为 `40`，或 `google_restric_info` 为 `1` 但日志中没有 `restrict broadcast cleared` | ColorOS 17 的 Google 限制未被解除，需要 53-coloros-10 或更新版本 |
+| GMS 为 `policy=4`（或 1、2） | GMS 被禁止全部（或部分）联网，见[流量管理里没有 Google 入口](#流量管理里没有-google-入口) |
+| 待机分组为 `40`，或 `google_restric_info` 为 `1` 但日志中没有 `restrict broadcast cleared` | ColorOS 17 的 Google 限制未被解除 |
 | 日志中有 `hook error` 或 `Unsupported` | 某个 Hook 与当前固件不匹配，请在 Issue 中贴出这些行 |
-| “Doze 白名单”显示 GMS/GSF 不在白名单 | 系统框架作用域的 Doze 白名单 Hook 未生效，日志中应有 `Oplus Doze whitelist hook active` |
-| 深度睡眠记录中断网时间与 FCM 断开吻合，且 `disNetType = 4` | 按应用断网，模块会放行 GMS，日志中应有 `Oplus night network whitelist: added GMS` |
-| 深度睡眠记录中 `disNetType` 为 1、2 或 3 | 深度睡眠直接关闭了 Wi‑Fi / 移动数据，属于整机断网，模块无法阻止；可在设置中关闭“睡眠待机优化” |
-| 以上均正常，但 FCM Diagnostics 一直 disconnected | 网络问题（DNS 污染或端口被封），见上文国内网络说明 |
-| 日志中有 `FCM trusted sender`（GMS 已发出），但没有通知 | 看“目标应用”一栏：`POST_NOTIFICATIONS` 为 `granted=false`、应用 `importance` 为 `0` 或 `NONE`、渠道 `mImportance=0` 表示通知被关闭；`stopped=true` 且相关日志中没有 `Start proc` 表示应用未被拉起，请附上报告提交 Issue |
+| “Doze 白名单”显示 GMS/GSF 不在白名单 | Doze 白名单 Hook 未生效，日志中应有 `Oplus Doze whitelist hook active` |
+| 深度睡眠记录与 FCM 断开吻合，且 `disNetType = 4` | 按应用断网，模块会放行 GMS，日志中应有 `Oplus night network whitelist: added GMS` |
+| 深度睡眠记录中 `disNetType` 为 1、2 或 3 | 整机断网，模块无法阻止，可在设置中关闭“睡眠待机优化” |
+| 以上都正常，但 FCM Diagnostics 一直 disconnected | 网络问题（DNS 污染或端口被封） |
+| 日志中有 `FCM trusted sender`（GMS 已发出），但没有通知 | 看“目标应用”一栏：`POST_NOTIFICATIONS` 为 `granted=false`、`importance` 为 `0` 或 `NONE`、渠道 `mImportance=0` 表示通知被关闭；`stopped=true` 且没有 `Start proc` 表示应用未被拉起，请提交 Issue |
+| 有 `Successful broadcast`、进程也被拉起，但通知仍延迟 | 看有没有 `Oplus FCM delivery window`、`Oplus FCM Hans-freeze bypass`、`Oplus FCM socket-close bypass`。二次冻结或断网只是可能原因之一，还要结合应用内部同步、消息优先级和网络判断 |

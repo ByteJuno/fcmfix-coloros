@@ -5,7 +5,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        提交前请先按 [如何提交问题与日志](https://github.com/ByteJuno/fcmfix-coloros/blob/master/docs/report-issue.md) 自查，并用脚本导出报告。
+        提交前请先按 [如何提交问题与日志](https://github.com/ByteJuno/fcmfix-coloros/blob/master/docs/report-issue.md) 自查并导出报告。
         FCM Diagnostics 亮屏也一直 disconnected 时，通常是网络问题（DNS 或端口），模块无法解决。
   - type: input
     id: device
@@ -18,7 +18,7 @@ body:
     id: version
     attributes:
       label: FCMFix 版本
-      placeholder: 13.0（LSPosed 模块列表中可查看）
+      placeholder: 在 LSPosed 模块列表中查看
     validations:
       required: true
   - type: checkboxes
@@ -35,7 +35,7 @@ body:
     id: hooks
     attributes:
       label: 自查结果 / Hook 状态
-      description: 13.2 起在 FCMFix“状态”页底部点“复制结果”，粘贴到这里（13.0–13.1 点顶部的状态卡片进入自查后复制）
+      description: 在 FCMFix“状态”页底部点“复制结果”，粘贴到这里
       render: text
   - type: dropdown
     id: fcm
@@ -66,6 +66,6 @@ body:
     id: report
     attributes:
       label: 报告与截图
-      description: 拖入 collect-report.sh 导出的两份报告、FCM Diagnostics 截图、LSPosed 作用域截图
+      description: 拖入导出的报告、FCM Diagnostics 截图、LSPosed 作用域截图
     validations:
       required: true
