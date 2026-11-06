@@ -46,4 +46,4 @@
 
 ## 许可证
 
-本项目自己的代码以 [MIT](LICENSE) 授权。上游 fcmfix 没有发布许可证，来自上游的代码不在授权范围内，详见 [NOTICE](NOTICE)。
+本项目和上游 fcmfix 都以 [MIT](LICENSE) 授权，第三方组件见 [NOTICE](NOTICE)。
